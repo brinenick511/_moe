@@ -1,5 +1,6 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,'
+
 import torch
 import torch.nn.functional as F
 from safetensors.torch import load_file
@@ -10,10 +11,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 
-from merge_methods import Merger
+from grouping.merge_methods import Merger
 
 class MoEWorker:
     def __init__(self,name):
+        home_dir = os.path.expanduser("~")
         self.name = name
         self.model_path = None
         self.json_file_path = None
@@ -27,13 +29,13 @@ class MoEWorker:
         
         if 'Mixtral' in name:
             if 'Instruct' in name:
-                self.model_path = '/new_data/yanghq/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+                self.model_path = home_dir+'/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
                 self.json_file_path = "/new_data/yanghq/models/mistralai/Mixtral-8x7B-Instruct-v0.1/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/mistralai/Mixtral-8x7B-Instruct-v0.1/{}'
+                self.shard_path = home_dir+'/models/mistralai/Mixtral-8x7B-Instruct-v0.1/{}'
             else:
-                self.model_path = '/new_data/yanghq/models/mistralai/Mixtral-8x7B-v0.1'
+                self.model_path = home_dir+'/models/mistralai/Mixtral-8x7B-v0.1'
                 self.json_file_path = "/new_data/yanghq/models/mistralai/Mixtral-8x7B-v0.1/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/mistralai/Mixtral-8x7B-v0.1/{}'
+                self.shard_path = home_dir+'/models/mistralai/Mixtral-8x7B-v0.1/{}'
             self.num_layer = 32
             self.num_expert = 8
             self.expert_path = 'model.layers.{}.block_sparse_moe.experts.{}.{}.weight'
@@ -42,9 +44,9 @@ class MoEWorker:
             self.hidden_size = 4096
             
         elif 'Qwen' in name:
-            self.model_path = '/new_data/yanghq/models/Qwen/Qwen1.5-MoE-A2.7B'
+            self.model_path = home_dir+'/models/Qwen/Qwen1.5-MoE-A2.7B'
             self.json_file_path = "/new_data/yanghq/models/Qwen/Qwen1.5-MoE-A2.7B/model.safetensors.index.json"
-            self.shard_path = '/new_data/yanghq/models/Qwen/Qwen1.5-MoE-A2.7B/{}'
+            self.shard_path = home_dir+'/models/Qwen/Qwen1.5-MoE-A2.7B/{}'
             self.num_layer = 24
             self.num_expert = 60
             self.expert_path = 'model.layers.{}.mlp.experts.{}.{}.weight'
@@ -54,13 +56,13 @@ class MoEWorker:
             
         elif 'DeepSeek' in name:
             if 'Chat' in name:
-                self.model_path = '/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite-Chat'
+                self.model_path = home_dir+'/models/deepseek-ai/DeepSeek-V2-Lite-Chat'
                 self.json_file_path = "/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite-Chat/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite-Chat/{}'
+                self.shard_path = home_dir+'/models/deepseek-ai/DeepSeek-V2-Lite-Chat/{}'
             else:
-                self.model_path = '/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite'
+                self.model_path = home_dir+'/models/deepseek-ai/DeepSeek-V2-Lite'
                 self.json_file_path = "/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/deepseek-ai/DeepSeek-V2-Lite/{}'
+                self.shard_path = home_dir+'/models/deepseek-ai/DeepSeek-V2-Lite/{}'
             self.num_layer = 27
             self.num_expert = 64
             self.expert_path = 'model.layers.{}.mlp.experts.{}.{}.weight'
@@ -70,13 +72,13 @@ class MoEWorker:
             
         elif 'Moonlight' in name:
             if 'Instruct' in name:
-                self.model_path = '/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B-Instruct'
+                self.model_path = home_dir+'/models/moonshotai/Moonlight-16B-A3B-Instruct'
                 self.json_file_path = "/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B-Instruct/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B-Instruct/{}'
+                self.shard_path = home_dir+'/models/moonshotai/Moonlight-16B-A3B-Instruct/{}'
             else:
-                self.model_path = '/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B'
+                self.model_path = home_dir+'/models/moonshotai/Moonlight-16B-A3B'
                 self.json_file_path = "/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B/model.safetensors.index.json"
-                self.shard_path = '/new_data/yanghq/models/moonshotai/Moonlight-16B-A3B/{}'
+                self.shard_path = home_dir+'/models/moonshotai/Moonlight-16B-A3B/{}'
             self.num_layer = 27
             self.num_expert = 64
             self.expert_path = 'model.layers.{}.mlp.experts.{}.{}.weight'
@@ -119,7 +121,7 @@ class MoEWorker:
                     shard_list.append(shard_path)
         weight_dict={}
         for shard_path in shard_list:
-            # shard_path = f'/new_data/yanghq/models/mistralai/Mixtral-8x7B-v0.1/{shard_path}'
+            # shard_path = fhome_dir+'/models/mistralai/Mixtral-8x7B-v0.1/{shard_path}'
             shard_path = self.shard_path.format(shard_path)
             shard_weights = load_file(shard_path)
             for i in range(self.num_expert):
@@ -150,7 +152,7 @@ class MoEWorker:
         # weight_idx = f'model.layers.{layer}.block_sparse_moe.gate.weight'
         weight_idx = self.router_path.format(layer)
         shard_path = data[weight_idx]
-        # shard_path = f'/new_data/yanghq/models/mistralai/Mixtral-8x7B-v0.1/{shard_path}'
+        # shard_path = fhome_dir+'/models/mistralai/Mixtral-8x7B-v0.1/{shard_path}'
         shard_path = self.shard_path.format(shard_path)
         shard_weights = load_file(shard_path)
         weights = shard_weights[weight_idx]
@@ -258,16 +260,16 @@ def draw_intra_dist():
         'Mixtral-8x7B-v0.1','Mixtral-8x7B-Instruct-v0.1','Qwen1.5-MoE-A2.7B',
         ]
     # model_name_list = ['DeepSeek-V2-Lite','DeepSeek-V2-Lite-Chat','Moonlight-16B-A3B']
-    
+    home_dir = os.path.expanduser("~")
     for model_name in model_name_list:
         print(f'\n[MODEL_NAME] {model_name}')
-        dirs = f'/new_data/yanghq/data/intra_sim_heatmap/{model_name}'
+        dirs = f'{home_dir}/data/intra_sim_heatmap/{model_name}'
         os.makedirs(dirs, exist_ok=True)
         loader = MoEWorker(model_name)
         data = Dei.load(f'dist/exp_cos/{model_name}')
         for layer in tqdm(range(loader.num_layer)):
             title=f'intra_cos/{model_name}/{layer:02d}'
-            save_path=f'/new_data/yanghq/data/intra_sim_heatmap/{model_name}/{layer:02d}.png'
+            save_path=f'{home_dir}/data/intra_sim_heatmap/{model_name}/{layer:02d}.png'
             plot_heatmap(data[layer],title,save_path)
 
 def test_merge(model_name='Mixtral-8x7B-v0.1'):
@@ -282,8 +284,9 @@ def test_merge(model_name='Mixtral-8x7B-v0.1'):
     
     from transformers import AutoModelForCausalLM, AutoTokenizer, AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-    if worker.model_name=='DeepSeek-V2-Lite':
-        from ..models.modeling_deepseek import DeepseekV2ForCausalLM
+    if 'Lite' in worker.model_path:
+        # from ..models.modeling_deepseek import DeepseekV2ForCausalLM
+        from models.modeling_deepseek import DeepseekV2ForCausalLM
         print('___using deepseek___')
         model = DeepseekV2ForCausalLM.from_pretrained(model_path, trust_remote_code=True, torch_dtype=torch.bfloat16, device_map='auto')
     else:

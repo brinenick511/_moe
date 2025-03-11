@@ -391,7 +391,7 @@ class DeepseekV2MLP(nn.Module):
 
 
 class MoEGate(nn.Module):
-    def __init__(self, config, layer_idx):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         self.top_k = config.num_experts_per_tok
@@ -410,7 +410,6 @@ class MoEGate(nn.Module):
         self.weight = nn.Parameter(
             torch.empty((self.n_routed_experts, self.gating_dim))
         )
-        self.layer_idx = layer_idx
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -437,22 +436,6 @@ class MoEGate(nn.Module):
             topk_weight, topk_idx = torch.topk(
                 scores, k=self.top_k, dim=-1, sorted=False
             )
-            
-            # ADDED:
-            # w3, i3 = torch.torch.topk(
-            #     topk_weight, k=3, dim=-1, sorted=False
-            # )
-            
-            
-            # import os
-            # ss = f'/new_data/yanghq/data/top/{self.layer_idx}.pt'
-            # if os.path.exists(ss):
-            #     pre = torch.load(ss).to(topk_weight.device)
-            #     pre = torch.cat((pre,topk_weight),dim=0)
-            # else:
-            #     pre = topk_weight
-            # torch.save(pre,ss)
-            
         elif self.topk_method == "group_limited_greedy":
             group_scores = (
                 scores.view(bsz * seq_len, self.n_group, -1).max(dim=-1).values
@@ -540,11 +523,10 @@ class DeepseekV2MoE(nn.Module):
     A mixed expert module containing shared experts.
     """
 
-    def __init__(self, config, layer_idx):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         self.num_experts_per_tok = config.num_experts_per_tok
-        self.layer_idx = layer_idx
 
         if hasattr(config, "ep_size") and config.ep_size > 1:
             assert config.ep_size == dist.get_world_size()
@@ -576,7 +558,7 @@ class DeepseekV2MoE(nn.Module):
                     for i in range(config.n_routed_experts)
                 ]
             )
-        self.gate = MoEGate(config,layer_idx)
+        self.gate = MoEGate(config)
         if config.n_shared_experts is not None:
             intermediate_size = config.moe_intermediate_size * config.n_shared_experts
             self.shared_experts = DeepseekV2MLP(
@@ -1217,12 +1199,13 @@ class DeepseekV2DecoderLayer(nn.Module):
     def __init__(self, config: DeepseekV2Config, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
+
         self.self_attn = ATTENTION_CLASSES[config._attn_implementation](
             config=config, layer_idx=layer_idx
         )
 
         self.mlp = (
-            DeepseekV2MoE(config,layer_idx)
+            DeepseekV2MoE(config)
             if (
                 config.n_routed_experts is not None
                 and layer_idx >= config.first_k_dense_replace
