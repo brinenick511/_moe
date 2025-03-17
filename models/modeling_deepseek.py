@@ -1265,6 +1265,7 @@ class DeepseekV2DecoderLayer(nn.Module):
             **kwargs,
         )
         hidden_states = residual + hidden_states
+        print('wtfwtf\nwtf\nwtf\nwtf')
 
         # Fully Connected
         residual = hidden_states
